@@ -517,6 +517,46 @@ int RotSighDuration = 1500;
 //********************************************************************************************* 
 // SETTERS ДЛЯ РТА
 //*********************************************************************************************
+// Анимация зрачков (аналог setMood, но для направлений)
+void setGlas(int leftX, int leftY, int rightX, int rightY, byte normSpeed = 1, byte fastSpeed = 10, bool enableSaccades = true) {
+  glasTargetL_X = constrain(leftX, -12, 12);
+  glasTargetL_Y = constrain(leftY, -8, 8);
+  glasTargetR_X = constrain(rightX, -12, 12);
+  glasTargetR_Y = constrain(rightY, -8, 8);
+  glasNormSpeed = constrain(normSpeed, 1, 5);
+  glasFastSpeed = constrain(fastSpeed, 5, 20);
+  glasEnabled = true;
+  glasSaccadesEnabled = enableSaccades;
+  glasAnimTimer = millis();
+  
+  // Сбрасываем таймер саккад при смене направления
+  saccadeTimer = millis() + random(saccadeDelayMin, saccadeDelayMax);
+}
+
+void setGlasEnabled(bool enabled) {
+  glasEnabled = enabled;
+  if (!enabled) {
+    pupilL_XOffset = 0; pupilL_YOffset = 0;     // Сразу в центр (статично)
+    pupilR_XOffset = 0; pupilR_YOffset = 0;
+  }
+}
+// Плавная/резкая смена размера зрачков
+void GlasSize(int startSize, int targetSize, int speedMs = 10, bool keepSaccades = true) {
+  glasSizeStart = constrain(startSize, 0, 25);
+  glasSizeTarget = constrain(targetSize, 0, 25);
+  glasSizeCurrent = glasSizeStart;
+  glasSizeSpeedMs = constrain(speedMs, 1, 50);  // 1 = очень быстро, 50 = медленно
+  glasSizeEnabled = true;
+  glasSizeTimer = millis();
+  glasSaccadesEnabled = keepSaccades;  // Можно отключить саккады при смене размера
+}
+
+// Выключить эффект изменения размера (возврат к дефолту)
+void GlasSizeOff() {
+  glasSizeEnabled = false;
+  pupilSize = 10;  // Возврат к обычному размеру (или можно оставить текущий)
+}
+
 
 // Включить/выключить рот
 void RotSetEnabled(bool enabled) {
@@ -686,6 +726,9 @@ void setPupilsEnabled(bool enable) {
   pupilsEnabled = enable;
 }
 
+ 
+
+
  //*********************************************************************************************
  //  GETTERS (МЕТОДЫ-ПОЛУЧАТЕЛИ)
  //*********************************************************************************************
@@ -762,6 +805,29 @@ int RotGetScreenConstraint_Y(){
   open(left, right);
  }
 
+  // Анимация зрачков (Glas — как "глаз", аналог mood)
+  bool glasEnabled = false;              // Включить анимацию зрачков
+  int glasTargetL_X = 0;                 // Цель для левого зрачка X
+  int glasTargetL_Y = 0;                 // Цель для левого зрачка Y
+  int glasTargetR_X = 0;                 // Цель для правого зрачка X
+  int glasTargetR_Y = 0;                 // Цель для правого зрачка Y
+  byte glasNormSpeed = 1;                // Нормальная скорость (медленно, 1–5)
+  byte glasFastSpeed = 10;               // Быстрая скорость (резко, 5–20)
+  unsigned long glasAnimTimer = 0;       // Таймер для плавности
+    // Живые зрачки — саккады (быстрые случайные движения)
+    bool glasSaccadesEnabled = true;        // Включить саккады (живость)
+    unsigned long saccadeTimer = 0;         // Таймер следующего дёргания
+    int saccadeDelayMin = 800;              // Мин. пауза между саккадами (мс)
+    int saccadeDelayMax = 3000;             // Макс. пауза (как у человека)
+    int saccadeAmplitude = 8;               // Насколько сильно дёргаются (пикселей)
+    byte saccadeSpeed = 20;                 // Скорость дёргания (чем больше — резче)
+    // Анимация размера зрачков (GlasSize — плавно/резко меняем размер)
+    bool glasSizeEnabled = false;           // Включена ли анимация размера
+    int glasSizeStart = 10;                 // Начальный размер
+    int glasSizeTarget = 10;                // Целевой размер
+    int glasSizeCurrent = 10;               // Текущий размер (интерполяция)
+    unsigned long glasSizeTimer = 0;        // Таймер анимации
+    int glasSizeSpeedMs = 10;               // Скорость в мс на шаг (меньше = быстрее)
 
  //*********************************************************************************************
  //  МАКРО-АНИМАЦИИ
@@ -940,7 +1006,45 @@ void RotAnim_laugh() {
     }
     vFlickerAlternate = !vFlickerAlternate;
   }
+  // Анимация зрачков (плавное движение к цели)
+   // === ЖИВЫЕ ЗРАЧКИ: основное направление + саккады (как у человека) ===
+   // === ЖИВЫЕ ЗРАЧКИ: направление + саккады + плавная смена размера ===
+  if(glasEnabled || glasSizeEnabled) {
+    if(millis() - glasAnimTimer > 40) {
+      int speed = glasNormSpeed;
 
+      // === Саккады (быстрые дёргания) ===
+      if(glasSaccadesEnabled && millis() > saccadeTimer) {
+        speed = saccadeSpeed;
+        pupilL_XOffset += random(-saccadeAmplitude, saccadeAmplitude+1);
+        pupilL_YOffset += random(-saccadeAmplitude/2, saccadeAmplitude/2+1);
+        pupilR_XOffset += random(-saccadeAmplitude, saccadeAmplitude+1);
+        pupilR_YOffset += random(-saccadeAmplitude/2, saccadeAmplitude/2+1);
+        saccadeTimer = millis() + random(saccadeDelayMin, saccadeDelayMax);
+      }
+
+      // === Плавное движение к цели (направление взгляда) ===
+      pupilL_XOffset += (glasTargetL_X - pupilL_XOffset) / speed;
+      pupilL_YOffset += (glasTargetL_Y - pupilL_YOffset) / speed;
+      pupilR_XOffset += (glasTargetR_X - pupilR_XOffset) / speed;
+      pupilR_YOffset += (glasTargetR_Y - pupilR_YOffset) / speed;
+
+      glasAnimTimer = millis();
+    }
+
+    // === Анимация размера зрачков ===
+    if(glasSizeEnabled && millis() - glasSizeTimer > glasSizeSpeedMs) {
+      if(glasSizeCurrent < glasSizeTarget) {
+        glasSizeCurrent++;
+      } else if(glasSizeCurrent > glasSizeTarget) {
+        glasSizeCurrent--;
+      } else {
+        glasSizeEnabled = false;  // Анимация завершена
+      }
+      pupilSize = glasSizeCurrent;
+      glasSizeTimer = millis();
+    }
+  }
   // Циклоп-режим, установить размер второго глаза и расстояние между ними в 0
   if(cyclops){
     eyeRwidthCurrent = 0;
