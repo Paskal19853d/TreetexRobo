@@ -117,6 +117,16 @@ class TFT_RoboEyes {
     unsigned long blinkCloseDurationTimer; // timer for how long to stay closed
     int blinkCloseDuration = 150;    // blink closed duration in milliseconds
 
+    // -------------------------->
+    // === Параметры зрачков ===
+    int pupilLxOffset = 0;   // смещение левого зрачка по X внутри глаза
+    int pupilLyOffset = 0;   // смещение левого зрачка по Y
+    int pupilRxOffset = 0;   // смещение правого зрачка по X
+    int pupilRyOffset = 0;   // смещение правого зрачка по Y
+    int pupilSize = 14;      // диаметр зрачка
+    uint16_t pupilColor = TFT_BLACK; // цвет зрачка
+    // --------------------------<
+
     // ---------------------------
     // Constructor
     // ---------------------------
@@ -209,6 +219,19 @@ class TFT_RoboEyes {
     // ---------------------------
     // Public methods
     // ---------------------------
+    // -------------------------------------------------->
+      // смена цвета зрачков
+      void setPupilColor(uint16_t color) {
+        pupilColor = color;
+      }
+
+      // смена размера зрачка
+      void setPupilSize(int size) {
+        pupilSize = size;
+      }
+    // --------------------------------------------------<
+
+
     // Call from setup() to set up the sprite and reset the eyes.
     void begin(byte frameRate = 50) {
       // Allocate and create the sprite (off-screen buffer)
@@ -451,10 +474,35 @@ class TFT_RoboEyes {
       laugh = true;
     }
 
+          // ----------------------------------------------------------------->
+
+              // Ограничение смещения зрачка внутри белка глаза
+        int constrainPupil(int offset, int eyeWidth, int eyeHeight) {
+          int limitX = (eyeWidth / 2) - (pupilSize / 2) - 1;
+          int limitY = (eyeHeight / 2) - (pupilSize / 2) - 1;
+          if (offset > limitX) offset = limitX;
+          if (offset < -limitX) offset = -limitX;
+          if (offset > limitY) offset = limitY;
+          if (offset < -limitY) offset = -limitY;
+          return offset;
+        }
+
+      // -------------------------------------------------------------------------------<
+
   private:
     // ---------------------------
     // Core drawing logic – adapts animations and draws the eyes on the sprite.
     void drawEyes() {
+        // --------------------------------------------------------------->
+        // автоматическое небольшое движение зрачков
+          pupilLxOffset = sinf(millis() / 500.0f) * 5;
+          pupilLyOffset = cosf(millis() / 700.0f) * 3;
+
+          pupilRxOffset = sinf((millis() + 300) / 500.0f) * 5;
+          pupilRyOffset = cosf((millis() + 300) / 700.0f) * 3;
+
+        // ---------------------------------------------------------------<
+
       // --- PRE-CALCULATIONS ---
       if (curious) {
         if (eyeLxNext <= 10) { eyeLheightOffset = 8; }
@@ -575,6 +623,16 @@ class TFT_RoboEyes {
         spaceBetweenCurrent = 0;
       }
 
+      // ----------------------------------------------------------------->
+      // --- Обновление смещений зрачков ---Это гарантирует, что при любых размерах глаза зрачки остаются внутри белка.
+      pupilLxOffset = constrainPupil(pupilLxOffset, eyeLwidthCurrent, eyeLheightCurrent);
+      pupilLyOffset = constrainPupil(pupilLyOffset, eyeLwidthCurrent, eyeLheightCurrent);
+
+      pupilRxOffset = constrainPupil(pupilRxOffset, eyeRwidthCurrent, eyeRheightCurrent);
+      pupilRyOffset = constrainPupil(pupilRxOffset, eyeRwidthCurrent, eyeRheightCurrent);
+
+      // -----------------------------------------------------------------<
+
       // --- ACTUAL DRAWINGS ---
       // Instead of clearing the TFT, clear the sprite to the background color.
       sprite->fillSprite(bgColor);
@@ -584,7 +642,34 @@ class TFT_RoboEyes {
       if (!cyclops) {
         sprite->fillRoundRect(eyeRx, eyeRy, eyeRwidthCurrent, eyeRheightCurrent, eyeRborderRadiusCurrent, mainColor);
       }
+      // ----------------------------------------------------------------->Важно: мы используем sprite — значит у всех спрайтов (глаз + зрачков) один буфер, и все оказываются на дисплее одновременно.
+      // --- Рисуем зрачки ---
+          if (!cyclops) {
+            // левый зрачок
+            sprite->fillCircle(
+              eyeLx + (eyeLwidthCurrent / 2) + pupilLxOffset,
+              eyeLy + (eyeLheightCurrent / 2) + pupilLyOffset,
+              pupilSize / 2,
+              pupilColor
+            );
+            // правый зрачок
+            sprite->fillCircle(
+              eyeRx + (eyeRwidthCurrent / 2) + pupilRxOffset,
+              eyeRy + (eyeRheightCurrent / 2) + pupilRyOffset,
+              pupilSize / 2,
+              pupilColor
+            );
+          } else {
+            // если циклоп (один глаз)
+            sprite->fillCircle(
+              eyeLx + (eyeLwidthCurrent / 2) + pupilLxOffset,
+              eyeLy + (eyeLheightCurrent / 2) + pupilLyOffset,
+              pupilSize / 2,
+              pupilColor
+            );
+          }
 
+      // -----------------------------------------------------------------<
       // Prepare mood transitions: tired, angry, happy
       if (tired) { 
         eyelidsTiredHeightNext = eyeLheightCurrent / 2; 
@@ -602,7 +687,11 @@ class TFT_RoboEyes {
         eyelidsHappyBottomOffsetNext = eyeLheightCurrent / 2; 
       } else { 
         eyelidsHappyBottomOffsetNext = 0; 
-      }
+      } 
+
+      // ------------------------------------------------------------------------------->Добавь в private (внутри класса, но после других методов):
+
+
 
       // Tired eyelids
       eyelidsTiredHeight = (eyelidsTiredHeight + eyelidsTiredHeightNext) / 2;
