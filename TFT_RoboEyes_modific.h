@@ -1,6 +1,7 @@
 
 #ifndef _TFT_ROBOEYES_H
 #define _TFT_ROBOEYES_H
+#include "eye.h"                // Bitmap_s изображений  
 
 #include <TFT_eSPI.h>
 // #include <TFT_eSprite.h>  // Include the sprite class header if needed
@@ -126,6 +127,7 @@ class TFT_RoboEyes {
     int pupilSize = 14;      // диаметр зрачка
     uint16_t pupilColor = TFT_BLACK; // цвет зрачка
     // --------------------------<
+      // Функция для прозрачного рисования
 
     // ---------------------------
     // Constructor
@@ -230,6 +232,28 @@ class TFT_RoboEyes {
         pupilSize = size;
       }
     // --------------------------------------------------<
+    //Зрачок картинка
+          void drawTransparentImage(
+          TFT_eSprite *sprite,
+          int x, int y,
+          const uint16_t *img,
+          int w, int h
+        ) {
+          for (int j = 0; j < h; j++) {
+            for (int i = 0; i < w; i++) {
+              uint16_t c = img[j * w + i];
+              if (c != 0x0000) {
+                sprite->drawPixel(x + i, y + j, c);
+              }
+            }
+          }
+        }
+
+
+    // --------------------------------------------------<
+
+
+
 
 
     // Call from setup() to set up the sprite and reset the eyes.
@@ -492,15 +516,49 @@ class TFT_RoboEyes {
   private:
     // ---------------------------
     // Core drawing logic – adapts animations and draws the eyes on the sprite.
+                        
+
     void drawEyes() {
+
+            float t = millis() * 0.002f;   // скорость движения взгляда
+            // Единый вектор направления взгляда
+            //---- Зрачки
+            int pupilWidth = 32;
+            int pupilHeight = 32;
+
         // --------------------------------------------------------------->
         // автоматическое небольшое движение зрачков
-          pupilLxOffset = sinf(millis() / 500.0f) * 5;
-          pupilLyOffset = cosf(millis() / 700.0f) * 3;
 
-          pupilRxOffset = sinf((millis() + 300) / 500.0f) * 5;
-          pupilRyOffset = cosf((millis() + 300) / 700.0f) * 3;
+        // Левый глаз — плавное "осматривание"
+           
+             
+            // Единый вектор направления взгляда
+            float lookX = sinf(t) * 4.0f;
+            float lookY = cosf(t * 0.8f) * 3.0f;
 
+            // Левый глаз
+            pupilLxOffset = lookX;
+            pupilLyOffset = lookY;
+
+            // Правый глаз — ТОТ ЖЕ вектор (никакого косоглазия)
+            pupilRxOffset = lookX;
+            pupilRyOffset = lookY;
+
+
+  /*
+          pupilLxOffset = sinf(millis() / 200.0f) * 3;
+          pupilLyOffset = cosf(millis() / 200.0f) * 3;
+
+          pupilRxOffset = sinf(millis() / 200.0f) * 3;
+          pupilRyOffset = cosf(millis() / 200.0f) * 3;
+
+      
+          pupilLxOffset = sinf(millis() / 200.0f) * 3;
+          pupilLyOffset = cosf(millis() / 200.0f) * 3;
+
+          pupilRxOffset = sinf((millis() + 300) / 400.0f) * 4;
+          pupilRyOffset = cosf((millis() + 300) / 400.0f) * 4;
+        */
         // ---------------------------------------------------------------<
 
       // --- PRE-CALCULATIONS ---
@@ -643,7 +701,32 @@ class TFT_RoboEyes {
         sprite->fillRoundRect(eyeRx, eyeRy, eyeRwidthCurrent, eyeRheightCurrent, eyeRborderRadiusCurrent, mainColor);
       }
       // ----------------------------------------------------------------->Важно: мы используем sprite — значит у всех спрайтов (глаз + зрачков) один буфер, и все оказываются на дисплее одновременно.
-      // --- Рисуем зрачки ---
+              // --- Рисуем зрачки картинкой ---
+              if (!cyclops) {
+                drawTransparentImage(
+                  sprite,
+                  eyeLx + (eyeLwidthCurrent / 2) - (pupilWidth / 2) + pupilLxOffset,
+                  eyeLy + (eyeLheightCurrent / 2) - (pupilHeight / 2) + pupilLyOffset,
+                  pupilImg, pupilWidth, pupilHeight
+                );
+
+                drawTransparentImage(
+                  sprite,
+                  eyeRx + (eyeRwidthCurrent / 2) - (pupilWidth / 2) + pupilRxOffset,
+                  eyeRy + (eyeRheightCurrent / 2) - (pupilHeight / 2) + pupilRyOffset,
+                  pupilImg, pupilWidth, pupilHeight
+                );
+              } else {
+                drawTransparentImage(
+                  sprite,
+                  eyeLx + (eyeLwidthCurrent / 2) - (pupilWidth / 2) + pupilLxOffset,
+                  eyeLy + (eyeLheightCurrent / 2) - (pupilHeight / 2) + pupilLyOffset,
+                  pupilImg, pupilWidth, pupilHeight
+                );
+              }
+
+
+      /*
           if (!cyclops) {
             // левый зрачок
             sprite->fillCircle(
@@ -668,7 +751,7 @@ class TFT_RoboEyes {
               pupilColor
             );
           }
-
+        */
       // -----------------------------------------------------------------<
       // Prepare mood transitions: tired, angry, happy
       if (tired) { 
