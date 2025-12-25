@@ -14,7 +14,6 @@
 #define TIRED     1
 #define ANGRY     2
 #define HAPPY     3
-#define ANGRY_S   4 
 
 #define ON  1
 #define OFF 0
@@ -118,35 +117,6 @@ class TFT_RoboEyes {
     unsigned long blinkCloseDurationTimer; // timer for how long to stay closed
     int blinkCloseDuration = 150;    // blink closed duration in milliseconds
 
-    
-      //пот---------------------------------------------------------------------------
-
-        // ===== POT (капли пота) =====
-        static const int MAX_SWEAT = 10;     // максимум капель пота
-        int sweatX[MAX_SWEAT];               // X-координаты капель
-        int sweatY[MAX_SWEAT];               // Y-координаты капель
-        int sweatSpeed[MAX_SWEAT];           // скорость падения капель
-        bool sweatActive[MAX_SWEAT];         // активна ли капля
-        uint16_t sweatColor = TFT_CYAN;      // цвет капель (можно изменить через функцию)
-
-
-      //------------------------------<
-    //-----------------------------ПОТ
-    // Создаёт одну каплю под указанным глазом
-      void spawnSweat(int eyeX, int eyeY, int eyeWidth) {
-        for (int i = 0; i < MAX_SWEAT; i++) {
-          if (!sweatActive[i]) {
-            sweatActive[i] = true;
-            // размещаем в диапазоне по ширине глаза
-            sweatX[i] = eyeX + random(eyeWidth / 4, eyeWidth - eyeWidth / 4);
-            sweatY[i] = eyeY + eyeWidth / 2; // ниже глаза
-            sweatSpeed[i] = random(1, 4);    // скорость случайная
-            break;
-          }
-        }
-      }
-
-
     // ---------------------------
     // Constructor
     // ---------------------------
@@ -160,7 +130,6 @@ class TFT_RoboEyes {
         screenHeight = 240;
         tft->setRotation(rotations);
       }
-
 
       // Set default colors
       bgColor = DEFAULT_BGCOLOR;
@@ -242,14 +211,6 @@ class TFT_RoboEyes {
     // ---------------------------
     // Call from setup() to set up the sprite and reset the eyes.
     void begin(byte frameRate = 50) {
-      // Инициализация капель пота
-        for (int i = 0; i < MAX_SWEAT; i++) {
-          sweatActive[i] = false;
-          sweatX[i] = 0;
-          sweatY[i] = 0;
-          sweatSpeed[i] = random(1, 3); // разные скорости
-        }
-
       // Allocate and create the sprite (off-screen buffer)
       sprite = new TFT_eSprite(tft);
       sprite->setColorDepth(8);
@@ -328,16 +289,6 @@ class TFT_RoboEyes {
       switch (mood) {
         case TIRED:  tired = true; angry = false; happy = false; break;
         case ANGRY:  tired = false; angry = true; happy = false; break;
-
-              case ANGRY_S:  // Дождь
-              tired = false; 
-              angry = true;
-              happy = false;
-              spawnSweat(eyeLx, eyeLy, eyeLwidthCurrent);
-                     //  if (!cyclops) spawnSweat(eyeRx, eyeRy, eyeRwidthCurrent);
-              break;
-
-
         case HAPPY:  tired = false; angry = false; happy = true; break;
         default:     tired = false; angry = false; happy = false; break;
       }
@@ -504,22 +455,6 @@ class TFT_RoboEyes {
     // ---------------------------
     // Core drawing logic – adapts animations and draws the eyes on the sprite.
     void drawEyes() {
-      //---Пот -----------------------------------------------------------------------
-                      // Обновление и отрисовка капель пота на sprite
-                for (int i = 0; i < MAX_SWEAT; i++) {
-                  if (sweatActive[i]) {
-                    sweatY[i] += sweatSpeed[i];   // капля опускается
-
-                    // рисуем каплю на sprite
-                    sprite->fillCircle(sweatX[i], sweatY[i], 2, sweatColor);
-
-                    // если вышла за нижнюю границу — отключаем
-                    if (sweatY[i] > screenHeight) {
-                      sweatActive[i] = false;
-                    }
-                  }
-                }
-
       // --- PRE-CALCULATIONS ---
       if (curious) {
         if (eyeLxNext <= 10) { eyeLheightOffset = 8; }
