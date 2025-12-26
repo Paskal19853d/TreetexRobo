@@ -127,7 +127,9 @@ class TFT_RoboEyes {
     int pupilSize = 14;      // диаметр зрачка
     uint16_t pupilColor = TFT_BLACK; // цвет зрачка
     // --------------------------<
-      // Функция для прозрачного рисования
+     
+    bool dropsEnabled = false;   // показывать снег или нет
+    bool dropsEnabled2 = false;   // показывать дождь или нет
 
     // ---------------------------
     // Constructor
@@ -221,6 +223,14 @@ class TFT_RoboEyes {
     // ---------------------------
     // Public methods
     // ---------------------------
+
+    // ---------------------------------------------------
+    void kapli(bool on) {
+       dropsEnabled = on;
+    }
+        void sneg(bool on) {
+       dropsEnabled2 = on;
+    }
     // -------------------------------------------------->
       // смена цвета зрачков
       void setPupilColor(uint16_t color) {
@@ -267,6 +277,25 @@ class TFT_RoboEyes {
       eyeLheightCurrent = 1;
       eyeRheightCurrent = 1;
       setFramerate(frameRate);
+      //---------------------------------------------------->инициализация СНЕГА:
+    for (int i = 0; i < MAX_DROPS; i++) {
+        drops[i].x = random(screenWidth);
+        drops[i].y = random(-screenHeight, 0);
+        drops[i].size = random(1, 6);  // размер 2…5 пикселей
+        drops[i].speed = random(1, 2); // скорость падения
+        drops[i].color = TFT_CYAN;  // можно менять на любой цвет
+    }
+      //----------------------------------------------------<
+      //---------------------------------------------------->инициализация дОЖДЯ:
+      for (int i2 = 0; i2 < MAX_DOZD; i2++) {
+          dozd[i2].x2 = random(screenWidth);
+          dozd[i2].y2 = random(-screenHeight, 0);
+          dozd[i2].size2 = random(2, 5);
+          dozd[i2].speed2 = random(1, 4);
+          dozd[i2].color2 = TFT_SKYBLUE;  // можно менять цвет дождя
+      }
+      //----------------------------------------------------<
+
     }
 
     // Update the display; call often (e.g., inside loop())
@@ -513,8 +542,112 @@ class TFT_RoboEyes {
 
       // -------------------------------------------------------------------------------<
 
-  private:
-    // ---------------------------
+  private: 
+           
+    // ---массив СНЕГА и параметры для анимации---
+    struct Drop {
+        int x;
+        int y;
+        int size;
+        int speed;
+        uint16_t color;
+    };
+    static const int MAX_DROPS = 20;  // количество капель
+    Drop drops[MAX_DROPS];
+    //------------------+++++дОЖДЬ
+    struct Dozd {
+        int x2;
+        int y2;
+        int size2;
+        int speed2;
+        float wind; 
+        uint16_t color2;
+    };
+    static const int MAX_DOZD = 20;     // количество капель дождя
+    Dozd dozd[MAX_DOZD];                 // массив дождевых капель
+
+    // ---------------------------Рисую Сенег:
+          void updateDrops() {
+        for (int i = 0; i < MAX_DROPS; i++) {
+            // стираем старую каплю
+        // круглые капли    
+        sprite->fillCircle(drops[i].x, drops[i].y, drops[i].size, bgColor);
+  
+            // обновляем позицию
+            drops[i].y += drops[i].speed;
+            if (drops[i].y > screenHeight) {
+                drops[i].y = -drops[i].size;
+                drops[i].x = random(screenWidth);
+            }
+
+            // рисуем новую каплю
+            sprite->fillCircle(drops[i].x, drops[i].y, drops[i].size, drops[i].color);
+         }
+
+       }
+   // ----------------------------------<
+   // ----------------------------------->рисую Дождь v1
+  /*    void updateDozd() {
+          for (int i2 = 0; i2 < MAX_DOZD; i2++) {
+              // вытягивает каплю по вертикали, чтобы больше походила на дождь.
+              sprite->fillEllipse(dozd[i2].x2, dozd[i2].y2, dozd[i2].size2, dozd[i2].size2*2, bgColor);
+
+              // обновляем позицию
+              dozd[i2].y2 += dozd[i2].speed2;
+              if (dozd[i2].y2 > screenHeight) {
+                  dozd[i2].y2 = -dozd[i2].size2;
+                  dozd[i2].x2 = random(screenWidth);
+              }
+
+              // рисуем новую каплю
+              sprite->fillEllipse(dozd[i2].x2, dozd[i2].y2, dozd[i2].size2, dozd[i2].size2*2, dozd[i2].color2);
+          }
+      }
+  */
+   //-------------------------------------<
+   // ----------------------------------->рисую Дождь v2
+          void updateDozd() {
+            for (int i2 = 0; i2 < MAX_DOZD; i2++) {
+
+              // стереть старую каплю
+              sprite->fillEllipse(
+                dozd[i2].x2,
+                dozd[i2].y2,
+                dozd[i2].size2,
+                dozd[i2].size2 * 3,
+                bgColor
+              );
+
+              // физика падения
+              dozd[i2].y2 += dozd[i2].speed2;
+              dozd[i2].x2 += dozd[i2].wind;
+
+              // ускорение (гравитация)
+              dozd[i2].speed2 += 0.15;
+
+              // если вышла за экран — пересоздаём
+              if (dozd[i2].y2 > screenHeight) {
+                dozd[i2].y2 = -random(20, 80);
+                dozd[i2].x2 = random(screenWidth);
+                dozd[i2].speed2 = random(1, 8);
+                dozd[i2].size2 = random(1, 3);
+                dozd[i2].wind = random(-10, 10) * 0.05;
+              }
+
+              // рисуем каплю
+              sprite->fillEllipse(
+                dozd[i2].x2,
+                dozd[i2].y2,
+                dozd[i2].size2,
+                dozd[i2].size2 * 3,
+                dozd[i2].color2
+              );
+            }
+          }
+
+
+   //-------------------------------------<
+
     // Core drawing logic – adapts animations and draws the eyes on the sprite.
                         
 
@@ -545,7 +678,7 @@ class TFT_RoboEyes {
             pupilRyOffset = lookY;
 
 
-  /*
+        /*
           pupilLxOffset = sinf(millis() / 200.0f) * 3;
           pupilLyOffset = cosf(millis() / 200.0f) * 3;
 
@@ -772,9 +905,16 @@ class TFT_RoboEyes {
         eyelidsHappyBottomOffsetNext = 0; 
       } 
 
-      // ------------------------------------------------------------------------------->Добавь в private (внутри класса, но после других методов):
-
-
+      //  добавляем проверку флага снега
+          if (dropsEnabled) {
+              updateDrops();
+          }
+      // -----------------------< 
+      //  добавляем проверку флага капель дождя
+        if (dropsEnabled2) {
+            updateDozd();
+        }
+      // -----------------------< 
 
       // Tired eyelids
       eyelidsTiredHeight = (eyelidsTiredHeight + eyelidsTiredHeightNext) / 2;
